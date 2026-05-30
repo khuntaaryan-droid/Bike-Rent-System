@@ -1,0 +1,40 @@
+<body onload="document.getElementById('rzp-button').click()">
+    <div style="text-align: center; margin-top: 100px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <div class="spinner-border text-primary" role="status"></div>
+        <h2 style="color: #333;">Connecting to Razorpay...</h2>
+        <p style="color: #666;">Please do not close this window.</p>
+        <button id="rzp-button" style="display:none;">Pay Now</button>
+    </div>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+        var options = {
+            "key": "{{ razorpay_key }}",
+            "amount": "{{ amount }}",
+            "currency": "INR",
+            "name": "Bike Rental Project",
+            "description": "Payment for {{ bike.bike_company }} {{ bike.bike_model }}",
+            "order_id": "{{ order_id }}",
+            "handler": function (response){
+                // Success: Redirect to our internal success view
+                window.location.href = "{% url 'payment-success' bike.bike_id %}";
+            },
+            "prefill": {
+                "name": "{{ customer_name }}",
+                "email": "{{ customer_email }}"
+            },
+            "theme": { "color": "#2196F3" },
+            "modal": {
+                "ondismiss": function(){
+                    // Failure/Cancel: Redirect home
+                    window.location.href = "{% url 'home' %}";
+                }
+            }
+        };
+        var rzp1 = new Razorpay(options);
+        document.getElementById('rzp-button').onclick = function(e){
+            rzp1.open();
+            e.preventDefault();
+        }
+    </script>
+</body>

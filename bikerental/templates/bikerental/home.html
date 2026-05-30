@@ -1,0 +1,94 @@
+{% extends 'bikerental/base.html' %}
+{% block content %}
+{% if user.is_authenticated and user.is_customer %}
+<div class="col-md-5 col-lg-5 col-sm">
+    <form action="{% url 'bikes-list' %}" class="py-3" id="locationcard" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <h3 id="locationcardhead">Search your next ride</h3>
+            <hr class="">
+        </div>
+        <div class="form-group">
+            <label for="pickup">Pickup date</label><br>
+            <input type="date" id="pickup" name="pickupDate" required>
+        </div>
+        <div class="form-group">
+            <label for="dropoff">Dropoff date</label><br>
+            <input type="date" id="dropoff" name="dropoffDate" required>
+        </div>
+        <div class="form-group">
+            <!-- DropDown Menu -->
+            <label for="loc1" class="mt-1">Location</label>
+            <select class="form-control location" id='loc1' name="selectedcity">
+                <option selected>Select Your Location</option>
+                {% for loc in location_data %}
+                <option value="{{ loc.location_name }}">{{ loc.location_name }}</option>
+                {% endfor %}
+            </select>
+            <!-- DropDown End -->
+        </div>
+        <button type="submit" class="btn btn-warning btn-block text-center mt-4">Search</button>
+    </form>
+</div>
+{% elif user.is_authenticated and user.is_dealer%}
+<div class="col-md-5 col-lg-5 col-sm mt-5" id="card">
+    <div class="py-3" id="locationcard">
+        <h3 id="locationcardhead">Add a new bike</h3>
+        <hr class="">
+        <a class="btn btn-warning btn-block text-center mt-4" href="{% url 'dealer-addbike' %}">Add bike</a>
+    </div>
+</div>
+{% else %}
+<div class="col-md-5 col-lg-5 col-sm">
+    <form class="py-3" id="locationcard">
+        <div class="form-group">
+            <h3 id="locationcardhead">Search your next ride</h3>
+            <hr class="">
+            <div class="form-group">
+                <label for="pickup">Pickup date</label><br>
+                <input type="date" id="pickup" name="pickupDate" required>
+            </div>
+
+            <div class="form-group">
+                <label for="dropoff">Dropoff date</label><br>
+                <input type="date" id="dropoff" name="dropoffDate" required>
+            </div>
+            <label for="loc2" class="mt-1">Location</label>
+
+            <!-- DropDown Menu -->
+            <select class="form-control location" id="loc2">
+                <option selected>Select Your Location</option>
+                {% for loc in location_data %}
+                <option value="">{{ loc.location_name }}</option>
+                {% endfor %}
+            </select>
+            <!-- DropDown End -->
+        </div>
+        <a class="btn btn-warning btn-block text-center mt-4" href="{% url 'customer-login' %}">Search</a>
+    </form>
+</div>
+{% endif %}
+<script>
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Set min for pickup date to today
+    const pickupInput = document.getElementById('pickup');
+    if (pickupInput) {
+        pickupInput.min = today;
+    }
+    
+    // Set min for dropoff date to today initially
+    const dropoffInput = document.getElementById('dropoff');
+    if (dropoffInput) {
+        dropoffInput.min = today;
+    }
+    
+    // Update dropoff min when pickup changes
+    if (pickupInput && dropoffInput) {
+        pickupInput.addEventListener('change', function() {
+            dropoffInput.min = this.value;
+        });
+    }
+</script>
+{% endblock content %}

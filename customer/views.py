@@ -1,0 +1,137 @@
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render,HttpResponse
+from django.contrib.auth import login, authenticate, logout
+from django.views.generic import CreateView
+import bike
+from bikerental.models import User
+from bike.models import Booking
+from .forms import CustomerSignupForm
+from django.contrib import messages
+from django.contrib.auth.forms import AuthenticationForm
+from .forms import CustomerUpdateForm, CustomerProfileUpdateForm
+from datetime import date
+from django.conf import settings
+import smtplib
+from email.mime.text import MIMEText
+
+# Create your views here.
+
+class customer_signup(CreateView):
+    model = User
+    form_class = CustomerSignupForm
+    template_name = 'customer/signup.html'
+
+    def form_valid(self, form):
+        user = form.save()
+        # login(self.request, user)
+        return redirect('customer-login')
+
+def customer_login(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(username=username, password=password)
+            if user is not None and user.is_customer:
+                login(request, user)
+                return redirect('home')
+            elif user.is_dealer:
+                messages.info(request, 'User does not exist')
+            else:
+                messages.error(request, "Invalid username or password")
+        else:
+            messages.error(request, "Invalid username or password")
+
+    return render(request, 'customer/login.html',
+                  context={'form': AuthenticationForm()})
+
+def customer_logout(request):
+    logout(request)
+    return redirect('home')
+
+@login_required
+def profile(request):
+    if request.method == 'POST':
+        c_form = CustomerUpdateForm(request.POST, instance=request.user)
+
+        cp_form = CustomerProfileUpdateForm(request.POST,
+                                            request.FILES,
+                                            instance=request.user.profile)
+
+        if c_form.is_valid():
+            c_form.save()
+            messages.success(request,
+                             f'Your account has been updated!')
+            return redirect('customer-profile')
+
+        if cp_form.is_valid():
+            cp_form.save()
+            messages.success(request,
+                             f'Your account has been updated!')
+            return redirect('customer-profile')
+    else:
+        c_form = CustomerUpdateForm(instance=request.user)
+        cp_form = CustomerProfileUpdateForm(instance=request.user.profile)
+
+    context = {
+        'c_form': c_form,
+        'cp_form': cp_form
+    }
+    return render(request, 'customer/profile.html', context)
+
+@login_required
+def my_rides(request):
+    all_booking = list(Booking.objects.all())
+    loggedin_userid = request.user.id
+    user_booking = []
+    count = 0
+
+    for b in all_booking:
+        if str(b.customer.user_id) == str(loggedin_userid):
+            if date.today() > b.dropoff_date:
+                b.is_completed = True
+                b.save()
+            user_booking.append(b)
+            count = count + 1
+
+    user_booking.reverse()
+    # return HttpResponse(count)
+    return render(request,'customer/myrides.html',{'user_booking': user_booking})
+
+def cancel_booking(request):
+    if request.method == "POST":
+        booking_id=request.POST['cancelbutton']
+        current_booking = Booking.objects.get(booking_id=booking_id)
+
+        if date.today() < current_booking.pickup_date:
+            Booking.objects.get(booking_id=booking_id).delete()
+            
+            try:
+                server = smtplib.SMTP('smtp.gmail.com', 587)
+                server.starttls()
+                server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
+                
+                # Email to Customer
+                msg_customer = MIMEText( f'Dear {request.user.username}, your booking for {current_booking. bike.bike_model} has been cancelled successfully.')
+                msg_customer['Subject'] = 'Ride Cancelled'
+                msg_customer['From'] = settings.EMAIL_HOST_USER
+                msg_customer['To'] = request.user.email
+                server.sendmail(settings.EMAIL_HOST_USER,[request.user.email],msg_customer.as_string())
+
+                # Email to Dealer
+                msg_dealer = MIMEText( f'The booking for your bike {bike.bike_model} has been cancelled by the customer.')
+                msg_dealer['Subject'] = 'Booking Cancelled'
+                msg_dealer['From'] = settings.EMAIL_HOST_USER
+                msg_dealer['To'] = bike.owner.user.email
+                server.sendmail( settings.EMAIL_HOST_USER,[bike.owner.user.email], msg_dealer.as_string())
+                messages.success(request, 'Your ride has been canceled successfully!')
+
+                server.quit()
+            except Exception as e:
+                print("Email Error:", e)
+            return redirect('customer-myrides')
+        messages.warning(request, 'You can not cancel this ride!')
+        return redirect('customer-myrides')
+
+    return redirect('customer-myrides')
