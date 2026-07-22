@@ -18,7 +18,7 @@ crypto==1.4.1
 cycler==0.12.1
 diff-match-patch==20241021
 distlib==0.3.9
-Django==5.2.14
+Django==6.0.6
 django-bootstrap4==26.1
 django-bootstrap5==26.2
 django-braces==1.17.0
